@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今日の予定</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: transparent;
+      padding: 12px;
+      font-size: 13px;
+      color: #37352f;
+    }
+
+    h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #787774;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: #f7f6f3;
+      min-height: 28px;
+    }
+
+    .event-time {
+      font-size: 11px;
+      color: #787774;
+      white-space: nowrap;
+      min-width: 80px;
+    }
+
+    .event-title {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tag {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .tag-学校  { background: #fde8c8; color: #c07a2f; }
+    .tag-部活  { background: #d5e4f4; color: #3a6f9e; }
+    .tag-個人  { background: #d9f0d3; color: #4a8b3f; }
+    .tag-出張  { background: #ead5f4; color: #7a3fa0; }
+    .tag-受験  { background: #fdd5d5; color: #a03f3f; }
+    .tag-other { background: #e8e8e3; color: #787774; }
+
+    .allday-badge {
+      font-size: 10px;
+      color: #9b9a97;
+      background: #e8e8e3;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .no-events {
+      color: #9b9a97;
+      font-size: 12px;
+      padding: 8px 0;
+      text-align: center;
+    }
+
+    .loading {
+      color: #9b9a97;
+      font-size: 12px;
+      padding: 8px 0;
+    }
+
+    .error {
+      color: #e03e3e;
+      font-size: 11px;
+      padding: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="date-label">読み込み中...</h2>
+  <div id="event-list" class="event-list">
+    <div class="loading">予定を取得中...</div>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzjCP6suHAtv252ZxlQeRoD9V98PR99tStjRHCN8jot8pSy4TcqD1mTHq7uninRsTAP/exec';
+
+    const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+    function getTagClass(calendar) {
+      if (!calendar) return 'tag-other';
+      if (calendar.includes('学校')) return 'tag-学校';
+      if (calendar.includes('部活')) return 'tag-部活';
+      if (calendar.includes('個人')) return 'tag-個人';
+      if (calendar.includes('出張')) return 'tag-出張';
+      if (calendar.includes('受験')) return 'tag-受験';
+      return 'tag-other';
+    }
+
+    function getTagLabel(calendar) {
+      if (!calendar) return 'その他';
+      if (calendar.includes('学校')) return '学校';
+      if (calendar.includes('部活')) return '部活';
+      if (calendar.includes('個人')) return '個人';
+      if (calendar.includes('出張')) return '出張';
+      if (calendar.includes('受験')) return '受験';
+      return 'その他';
+    }
+
+    function toJST(dateStr) {
+      return new Date(new Date(dateStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+    }
+
+    function formatTime(dateStr) {
+      const d = toJST(dateStr);
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    function isTodayEvent(event) {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const todayStr = `${jstNow.getFullYear()}-${String(jstNow.getMonth()+1).padStart(2,'0')}-${String(jstNow.getDate()).padStart(2,'0')}`;
+
+      if (event.allDay) {
+        // startとendの間に今日が入るか（endは翌日以降）
+        const startDate = event.start.substring(0, 10);
+        const endDate = event.end ? event.end.substring(0, 10) : startDate;
+        return startDate <= todayStr && todayStr < endDate;
+      } else {
+        const jstStart = toJST(event.start);
+        const startStr = `${jstStart.getFullYear()}-${String(jstStart.getMonth()+1).padStart(2,'0')}-${String(jstStart.getDate()).padStart(2,'0')}`;
+        return startStr === todayStr;
+      }
+    }
+
+    function sortEvents(events) {
+      return events.sort((a, b) => {
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        if (!a.allDay && !b.allDay) {
+          return new Date(a.start) - new Date(b.start);
+        }
+        return 0;
+      });
+    }
+
+    async function loadEvents() {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const month = jstNow.getMonth() + 1;
+      const day = jstNow.getDate();
+      const weekday = WEEKDAYS[jstNow.getDay()];
+      document.getElementById('date-label').textContent = `${month}月${day}日（${weekday}）の予定`;
+
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const todayEvents = sortEvents(data.filter(isTodayEvent));
+
+        const list = document.getElementById('event-list');
+        if (todayEvents.length === 0) {
+          list.innerHTML = '<div class="no-events">今日の予定はありません</div>';
+          return;
+        }
+
+        list.innerHTML = todayEvents.map(ev => {
+          const tagClass = getTagClass(ev.calendar);
+          const tagLabel = getTagLabel(ev.calendar);
+          const timeHtml = ev.allDay
+            ? `<span class="allday-badge">終日</span>`
+            : `<span class="event-time">${formatTime(ev.start)}〜${formatTime(ev.end || ev.start)}</span>`;
+          return `
+            <div class="event-item">
+              ${timeHtml}
+              <span class="event-title">${ev.title}</span>
+              <span class="tag ${tagClass}">${tagLabel}</span>
+            </div>`;
+        }).join('');
+
+      } catch (e) {
+        document.getElementById('event-list').innerHTML = `<div class="error">取得エラー: ${e.message}</div>`;
+      }
+    }
+
+    loadEvents();
+  </script>
+</body>
+</html>
