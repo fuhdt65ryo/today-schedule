@@ -172,13 +172,13 @@
       return 'その他';
     }
 
-    function toJST(str) {
-      return new Date(new Date(str).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-    }
-
     function formatTime(str) {
-      const d = toJST(str);
-      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return new Date(str).toLocaleTimeString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
     }
 
     function getTodayStr(jst) {
