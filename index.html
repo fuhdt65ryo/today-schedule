@@ -215,7 +215,10 @@
       } catch (_) {}
 
       try {
-        const res = await fetch(API_URL);
+        const timeMin = `${todayStr}T00:00:00+09:00`;
+        const timeMax = `${todayStr}T23:59:59+09:00`;
+        const url = `${API_URL}?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
+        const res = await fetch(url);
         const data = await res.json();
         const todayEvents = sortEvents(data.filter(isTodayEvent));
 
