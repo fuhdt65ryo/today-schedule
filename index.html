@@ -21,6 +21,15 @@
       color: #787774;
       margin-bottom: 8px;
       letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .updating {
+      font-size: 10px;
+      color: #b0aea9;
+      font-weight: 400;
     }
 
     .event-list {
@@ -37,7 +46,12 @@
       border-radius: 4px;
       background: #f7f6f3;
       min-height: 28px;
+      cursor: pointer;
+      transition: background 0.1s;
     }
+
+    .event-item:hover { background: #eeecea; }
+    .event-item.open  { background: #eeecea; border-radius: 4px 4px 0 0; }
 
     .event-time {
       font-size: 11px;
@@ -76,19 +90,48 @@
       background: #e8e8e3;
       padding: 1px 5px;
       border-radius: 3px;
+      min-width: 80px;
     }
+
+    .detail {
+      display: none;
+      background: #f0efec;
+      border-radius: 0 0 4px 4px;
+      padding: 6px 10px 8px;
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+      margin-bottom: 0;
+    }
+
+    .detail.visible { display: block; }
+
+    .detail-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 3px;
+    }
+
+    .detail-label {
+      color: #9b9a97;
+      min-width: 36px;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      color: #37352f;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .event-wrap { display: flex; flex-direction: column; margin-bottom: 4px; }
+    .event-wrap:last-child { margin-bottom: 0; }
 
     .no-events {
       color: #9b9a97;
       font-size: 12px;
       padding: 8px 0;
       text-align: center;
-    }
-
-    .loading {
-      color: #9b9a97;
-      font-size: 12px;
-      padding: 8px 0;
     }
 
     .error {
@@ -99,98 +142,107 @@
   </style>
 </head>
 <body>
-  <h2 id="date-label">読み込み中...</h2>
-  <div id="event-list" class="event-list">
-    <div class="loading">予定を取得中...</div>
-  </div>
+  <h2>
+    <span id="date-label">読み込み中...</span>
+    <span class="updating" id="updating-label"></span>
+  </h2>
+  <div id="event-list" class="event-list"></div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwcoRuulN2NilpKan3ubZoo9lcdB5kX6hBs1L3v1LjiVUjaosPU0zU6_c1Qm_ko7soH/exec';
-
+    const API_URL = 'https://script.google.com/macros/s/AKfycby2_p8sbK9TQfYupZpG11n2slbYsBTbIgJzg0GUvj5U4AvkQ3bOx_8iy4bt1G0dKLU1Tw/exec';
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
-    function getTagClass(calendar) {
-      if (!calendar) return 'tag-other';
-      if (calendar.includes('学校')) return 'tag-学校';
-      if (calendar.includes('部活')) return 'tag-部活';
-      if (calendar.includes('個人')) return 'tag-個人';
-      if (calendar.includes('出張')) return 'tag-出張';
-      if (calendar.includes('受験')) return 'tag-受験';
+    function getTagClass(cal) {
+      if (!cal) return 'tag-other';
+      if (cal.includes('学校')) return 'tag-学校';
+      if (cal.includes('部活')) return 'tag-部活';
+      if (cal.includes('個人')) return 'tag-個人';
+      if (cal.includes('出張')) return 'tag-出張';
+      if (cal.includes('受験')) return 'tag-受験';
       return 'tag-other';
     }
 
-    function getTagLabel(calendar) {
-      if (!calendar) return 'その他';
-      if (calendar.includes('学校')) return '学校';
-      if (calendar.includes('部活')) return '部活';
-      if (calendar.includes('個人')) return '個人';
-      if (calendar.includes('出張')) return '出張';
-      if (calendar.includes('受験')) return '受験';
+    function getTagLabel(cal) {
+      if (!cal) return 'その他';
+      if (cal.includes('学校')) return '学校';
+      if (cal.includes('部活')) return '部活';
+      if (cal.includes('個人')) return '個人';
+      if (cal.includes('出張')) return '出張';
+      if (cal.includes('受験')) return '受験';
       return 'その他';
     }
 
-    function toJST(dateStr) {
-      return new Date(new Date(dateStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+    function toJST(str) {
+      return new Date(new Date(str).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
     }
 
-    function formatTime(dateStr) {
-      const d = toJST(dateStr);
-      const h = String(d.getHours()).padStart(2, '0');
-      const m = String(d.getMinutes()).padStart(2, '0');
-      return `${h}:${m}`;
+    function formatTime(str) {
+      const d = toJST(str);
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     }
 
-    function isTodayEvent(event) {
-      const now = new Date();
-      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-      const todayStr = `${jstNow.getFullYear()}-${String(jstNow.getMonth()+1).padStart(2,'0')}-${String(jstNow.getDate()).padStart(2,'0')}`;
+    function getTodayStr(jst) {
+      return `${jst.getFullYear()}-${String(jst.getMonth()+1).padStart(2,'0')}-${String(jst.getDate()).padStart(2,'0')}`;
+    }
 
-      if (event.allDay) {
-        // startとendの間に今日が入るか（endは翌日以降）
-        const startDate = event.start.substring(0, 10);
-        const endDate = event.end ? event.end.substring(0, 10) : startDate;
-        return startDate <= todayStr && todayStr < endDate;
-      } else {
-        const jstStart = toJST(event.start);
-        const startStr = `${jstStart.getFullYear()}-${String(jstStart.getMonth()+1).padStart(2,'0')}-${String(jstStart.getDate()).padStart(2,'0')}`;
-        return startStr === todayStr;
+    function isTodayEvent(ev, todayStr) {
+      if (ev.allDay) {
+        const s = ev.start.substring(0,10);
+        const end = ev.end ? ev.end.substring(0,10) : s;
+        return s <= todayStr && todayStr < end;
       }
+      const jst = toJST(ev.start);
+      return getTodayStr(jst) === todayStr;
     }
 
-    function sortEvents(events) {
-      return events.sort((a, b) => {
-        if (a.allDay && !b.allDay) return -1;
-        if (!a.allDay && b.allDay) return 1;
-        if (!a.allDay && !b.allDay) {
-          return new Date(a.start) - new Date(b.start);
-        }
+    function sortEvents(evs) {
+      return evs.sort((a, b) => {
+        if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+        if (!a.allDay) return new Date(a.start) - new Date(b.start);
         return 0;
       });
     }
 
-    function getTodayStr(jstNow) {
-      return `${jstNow.getFullYear()}-${String(jstNow.getMonth()+1).padStart(2,'0')}-${String(jstNow.getDate()).padStart(2,'0')}`;
-    }
-
-    function renderEvents(todayEvents) {
+    function renderEvents(events) {
       const list = document.getElementById('event-list');
-      if (todayEvents.length === 0) {
+      if (events.length === 0) {
         list.innerHTML = '<div class="no-events">今日の予定はありません</div>';
         return;
       }
-      list.innerHTML = todayEvents.map(ev => {
+
+      list.innerHTML = events.map((ev, i) => {
         const tagClass = getTagClass(ev.calendar);
         const tagLabel = getTagLabel(ev.calendar);
         const timeHtml = ev.allDay
           ? `<span class="allday-badge">終日</span>`
           : `<span class="event-time">${formatTime(ev.start)}〜${formatTime(ev.end || ev.start)}</span>`;
+
+        const hasDetail = ev.description || ev.location;
+        const detailHtml = hasDetail ? `
+          <div class="detail" id="detail-${i}">
+            ${ev.location ? `<div class="detail-row"><span class="detail-label">📍 場所</span><span class="detail-value">${ev.location}</span></div>` : ''}
+            ${ev.description ? `<div class="detail-row"><span class="detail-label">📝 メモ</span><span class="detail-value">${ev.description}</span></div>` : ''}
+          </div>` : '';
+
         return `
-          <div class="event-item">
-            ${timeHtml}
-            <span class="event-title">${ev.title}</span>
-            <span class="tag ${tagClass}">${tagLabel}</span>
+          <div class="event-wrap">
+            <div class="event-item" onclick="toggleDetail(${i}, ${hasDetail ? 'true' : 'false'})" id="item-${i}">
+              ${timeHtml}
+              <span class="event-title">${ev.title}</span>
+              <span class="tag ${tagClass}">${tagLabel}</span>
+            </div>
+            ${detailHtml}
           </div>`;
       }).join('');
+    }
+
+    function toggleDetail(i, hasDetail) {
+      if (!hasDetail) return;
+      const detail = document.getElementById(`detail-${i}`);
+      const item = document.getElementById(`item-${i}`);
+      const isOpen = detail.classList.contains('visible');
+      detail.classList.toggle('visible', !isOpen);
+      item.classList.toggle('open', !isOpen);
     }
 
     async function loadEvents() {
@@ -199,37 +251,38 @@
       const todayStr = getTodayStr(jstNow);
       const month = jstNow.getMonth() + 1;
       const day = jstNow.getDate();
-      const weekday = WEEKDAYS[jstNow.getDay()];
-      document.getElementById('date-label').textContent = `${month}月${day}日（${weekday}）の予定`;
+      document.getElementById('date-label').textContent = `${month}月${day}日（${WEEKDAYS[jstNow.getDay()]}）の予定`;
 
-      // キャッシュ確認（同じ日付なら即表示）
+      // キャッシュをまず表示
+      let hasCache = false;
       try {
         const cached = localStorage.getItem('today-schedule');
         if (cached) {
           const { date, events } = JSON.parse(cached);
           if (date === todayStr) {
             renderEvents(events);
-            return;
+            hasCache = true;
           }
         }
       } catch (_) {}
 
+      // バックグラウンドで最新データ取得
+      if (hasCache) document.getElementById('updating-label').textContent = '更新中...';
       try {
         const timeMin = `${todayStr}T00:00:00+09:00`;
         const timeMax = `${todayStr}T23:59:59+09:00`;
         const url = `${API_URL}?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
         const res = await fetch(url);
         const data = await res.json();
-        const todayEvents = sortEvents(data.filter(isTodayEvent));
-
-        // 今日分をキャッシュ保存
-        try {
-          localStorage.setItem('today-schedule', JSON.stringify({ date: todayStr, events: todayEvents }));
-        } catch (_) {}
-
+        const todayEvents = sortEvents(data.filter(ev => isTodayEvent(ev, todayStr)));
+        localStorage.setItem('today-schedule', JSON.stringify({ date: todayStr, events: todayEvents }));
         renderEvents(todayEvents);
       } catch (e) {
-        document.getElementById('event-list').innerHTML = `<div class="error">取得エラー: ${e.message}</div>`;
+        if (!hasCache) {
+          document.getElementById('event-list').innerHTML = `<div class="error">取得エラー: ${e.message}</div>`;
+        }
+      } finally {
+        document.getElementById('updating-label').textContent = '';
       }
     }
 
