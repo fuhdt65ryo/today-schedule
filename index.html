@@ -168,39 +168,63 @@
       });
     }
 
+    function getTodayStr(jstNow) {
+      return `${jstNow.getFullYear()}-${String(jstNow.getMonth()+1).padStart(2,'0')}-${String(jstNow.getDate()).padStart(2,'0')}`;
+    }
+
+    function renderEvents(todayEvents) {
+      const list = document.getElementById('event-list');
+      if (todayEvents.length === 0) {
+        list.innerHTML = '<div class="no-events">今日の予定はありません</div>';
+        return;
+      }
+      list.innerHTML = todayEvents.map(ev => {
+        const tagClass = getTagClass(ev.calendar);
+        const tagLabel = getTagLabel(ev.calendar);
+        const timeHtml = ev.allDay
+          ? `<span class="allday-badge">終日</span>`
+          : `<span class="event-time">${formatTime(ev.start)}〜${formatTime(ev.end || ev.start)}</span>`;
+        return `
+          <div class="event-item">
+            ${timeHtml}
+            <span class="event-title">${ev.title}</span>
+            <span class="tag ${tagClass}">${tagLabel}</span>
+          </div>`;
+      }).join('');
+    }
+
     async function loadEvents() {
       const now = new Date();
       const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const todayStr = getTodayStr(jstNow);
       const month = jstNow.getMonth() + 1;
       const day = jstNow.getDate();
       const weekday = WEEKDAYS[jstNow.getDay()];
       document.getElementById('date-label').textContent = `${month}月${day}日（${weekday}）の予定`;
+
+      // キャッシュ確認（同じ日付なら即表示）
+      try {
+        const cached = localStorage.getItem('today-schedule');
+        if (cached) {
+          const { date, events } = JSON.parse(cached);
+          if (date === todayStr) {
+            renderEvents(events);
+            return;
+          }
+        }
+      } catch (_) {}
 
       try {
         const res = await fetch(API_URL);
         const data = await res.json();
         const todayEvents = sortEvents(data.filter(isTodayEvent));
 
-        const list = document.getElementById('event-list');
-        if (todayEvents.length === 0) {
-          list.innerHTML = '<div class="no-events">今日の予定はありません</div>';
-          return;
-        }
+        // 今日分をキャッシュ保存
+        try {
+          localStorage.setItem('today-schedule', JSON.stringify({ date: todayStr, events: todayEvents }));
+        } catch (_) {}
 
-        list.innerHTML = todayEvents.map(ev => {
-          const tagClass = getTagClass(ev.calendar);
-          const tagLabel = getTagLabel(ev.calendar);
-          const timeHtml = ev.allDay
-            ? `<span class="allday-badge">終日</span>`
-            : `<span class="event-time">${formatTime(ev.start)}〜${formatTime(ev.end || ev.start)}</span>`;
-          return `
-            <div class="event-item">
-              ${timeHtml}
-              <span class="event-title">${ev.title}</span>
-              <span class="tag ${tagClass}">${tagLabel}</span>
-            </div>`;
-        }).join('');
-
+        renderEvents(todayEvents);
       } catch (e) {
         document.getElementById('event-list').innerHTML = `<div class="error">取得エラー: ${e.message}</div>`;
       }
