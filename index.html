@@ -191,7 +191,7 @@
         const end = ev.end ? ev.end.substring(0,10) : s;
         return s <= todayStr && todayStr < end;
       }
-      const jst = toJST(ev.start);
+      const jst = new Date(new Date(ev.start).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
       return getTodayStr(jst) === todayStr;
     }
 
