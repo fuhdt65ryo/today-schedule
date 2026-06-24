@@ -235,7 +235,7 @@
         const h = t.getHours();
         const [icon,,wxCls] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
         const rain = hourly.precipitation_probability[i];
-        const rainCls = rain >= 30 ? 'rain-blue' : 'rain-gray';
+        const rainCls = rain >= 50 ? 'rain-blue' : 'rain-gray';
         items.push(`
           <div class="h-item ${wxCls}${isNow ? ' now' : ''}">
             <div class="h-time">${isNow ? '今' : h}</div>
@@ -256,7 +256,7 @@
         const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
         const [icon,,wxCls] = wmoInfo(daily.weather_code[i]);
         const rain = daily.precipitation_probability_max[i];
-        const rainCls = rain >= 30 ? 'rain-blue' : 'rain-gray';
+        const rainCls = rain >= 50 ? 'rain-blue' : 'rain-gray';
         return `
           <div class="d-item ${wxCls}${i===0?' today':''}">
             <div class="d-day ${cls}">${label}</div>
