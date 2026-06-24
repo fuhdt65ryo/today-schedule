@@ -221,6 +221,7 @@
         const diffH = (t - now) / 3600000;
         if (diffH < -0.5 || diffH > 23.5) continue;
         const isNow = Math.abs(diffH) < 0.6;
+        if (!isNow && t.getHours() % 2 !== 0) continue;
         const h = t.getHours();
         const [icon] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
         items.push(`
