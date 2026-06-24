@@ -122,13 +122,13 @@
       flex: 1;
       display: flex; flex-direction: column; align-items: center; gap: 1px;
       padding: 4px 0; min-width: 0;
-      background: #e8eaee; border-radius: 6px;
+      border-radius: 6px;
     }
-    .h-item.now { background: #bfdbfe; }
+    .h-item.now { outline: 2px solid #60a5fa; }
     .h-time { font-size: 9px; color: #6b7280; }
     .h-icon { font-size: 13px; line-height: 1.2; }
     .h-temp { font-size: 10px; font-weight: 700; color: #111827; }
-    .h-rain { font-size: 8px; color: #3b82f6; }
+    .h-rain { font-size: 8px; }
 
     /* ── 週間予報 ── */
     .weekly {
@@ -139,18 +139,27 @@
     .d-item {
       display: flex; flex-direction: column; align-items: center; gap: 2px;
       padding: 4px 2px;
-      background: #e8eaee; border-radius: 6px;
+      border-radius: 6px;
       min-width: 0;
     }
-    .d-item.today { background: #bfdbfe; }
+    .d-item.today { outline: 2px solid #60a5fa; }
     .d-day  { font-size: 10px; font-weight: 700; color: #1f2937; }
     .d-day.sat { color: #2563eb; }
     .d-day.sun { color: #dc2626; }
     .d-icon { font-size: 13px; line-height: 1.2; }
-    .d-rain { font-size: 8px; color: #60a5fa; }
+    .d-rain { font-size: 8px; }
     .d-temps { display: flex; gap: 3px; align-items: baseline; }
     .d-hi   { font-size: 10px; font-weight: 700; color: #dc2626; }
     .d-lo   { font-size: 9px; color: #2563eb; }
+
+    /* 天気別カラー */
+    .wx-sunny  { background: #fff3e0; }
+    .wx-cloudy { background: #e8eaee; }
+    .wx-rainy  { background: #dbeafe; }
+    .wx-storm  { background: #e0e7ff; }
+    .wx-snow   { background: #e0f2fe; }
+    .rain-blue { color: #3b82f6; }
+    .rain-gray { color: #9ca3af; }
   </style>
 </head>
 <body>
@@ -182,8 +191,10 @@
     function wmoInfo(code, isDay = true) {
       const icons = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌦️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌦️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'};
       const descs = {0:'快晴',1:'ほぼ晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'霧雨',53:'霧雨',55:'霧雨',61:'小雨',63:'雨',65:'大雨',71:'小雪',73:'雪',75:'大雪',80:'にわか雨',81:'にわか雨',82:'にわか雨',95:'雷雨',96:'雷雨',99:'雷雨'};
-      if (!isDay && (code===0||code===1)) return ['🌙', descs[code]];
-      return [icons[code]||'🌡️', descs[code]||'不明'];
+      const wxClass = code<=1 ? 'wx-sunny' : code<=3 ? 'wx-cloudy' : code<=48 ? 'wx-cloudy'
+        : code<=65 ? 'wx-rainy' : code<=75 ? 'wx-snow' : code<=82 ? 'wx-rainy' : 'wx-storm';
+      if (!isDay && (code===0||code===1)) return ['🌙', descs[code], 'wx-cloudy'];
+      return [icons[code]||'🌡️', descs[code]||'不明', wxClass];
     }
 
     async function loadWeather(lat, lon) {
@@ -222,13 +233,15 @@
         const isNow = Math.abs(diffH) < 0.6;
         if (!isNow && t.getHours() % 2 !== 0) continue;
         const h = t.getHours();
-        const [icon] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
+        const [icon,,wxCls] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
+        const rain = hourly.precipitation_probability[i];
+        const rainCls = rain >= 30 ? 'rain-blue' : 'rain-gray';
         items.push(`
-          <div class="h-item${isNow ? ' now' : ''}">
+          <div class="h-item ${wxCls}${isNow ? ' now' : ''}">
             <div class="h-time">${isNow ? '今' : h}</div>
             <div class="h-icon">${icon}</div>
             <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
-            <div class="h-rain">${hourly.precipitation_probability[i]}%</div>
+            <div class="h-rain ${rainCls}">${rain}%</div>
           </div>`);
       }
       document.getElementById('hourly-container').innerHTML =
@@ -241,12 +254,14 @@
         const wd = d.getDay();
         const label = WEEKDAYS[wd];
         const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
-        const [icon] = wmoInfo(daily.weather_code[i]);
+        const [icon,,wxCls] = wmoInfo(daily.weather_code[i]);
+        const rain = daily.precipitation_probability_max[i];
+        const rainCls = rain >= 30 ? 'rain-blue' : 'rain-gray';
         return `
-          <div class="d-item${i===0?' today':''}">
+          <div class="d-item ${wxCls}${i===0?' today':''}">
             <div class="d-day ${cls}">${label}</div>
             <div class="d-icon">${icon}</div>
-            <div class="d-rain">${daily.precipitation_probability_max[i]}%</div>
+            <div class="d-rain ${rainCls}">${rain}%</div>
             <div class="d-temps">
               <span class="d-hi">${Math.round(daily.temperature_2m_max[i])}°</span>
               <span class="d-lo">${Math.round(daily.temperature_2m_min[i])}°</span>
