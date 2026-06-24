@@ -254,9 +254,10 @@
         const wd = d.getDay();
         const label = WEEKDAYS[wd];
         const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
-        const [icon,,wxCls] = wmoInfo(daily.weather_code[i]);
+        const [icon,,wxBase] = wmoInfo(daily.weather_code[i]);
         const rain = daily.precipitation_probability_max[i];
         const rainCls = rain >= 50 ? 'rain-blue' : 'rain-gray';
+        const wxCls = rain >= 50 ? 'wx-rainy' : wxBase === 'wx-rainy' || wxBase === 'wx-storm' ? 'wx-cloudy' : wxBase;
         return `
           <div class="d-item ${wxCls}${i===0?' today':''}">
             <div class="d-day ${cls}">${label}</div>
