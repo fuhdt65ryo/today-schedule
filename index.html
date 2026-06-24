@@ -239,7 +239,7 @@
       const cols = daily.time.map((dateStr, i) => {
         const d  = new Date(dateStr + 'T00:00:00');
         const wd = d.getDay();
-        const label = i===0 ? '今' : i===1 ? '明' : WEEKDAYS[wd];
+        const label = WEEKDAYS[wd];
         const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
         const [icon] = wmoInfo(daily.weather_code[i]);
         return `
