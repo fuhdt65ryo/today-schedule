@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ダッシュボード</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: transparent;
+      padding: 10px 12px;
+      color: #37352f;
+    }
+
+    /* ── 上段：天気 × スケジュール ── */
+    .top-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 8px;
+      margin-bottom: 6px;
+      align-items: stretch;
+    }
+
+    /* 天気パネル */
+    .weather-panel {
+      background: #dce8f7;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+    }
+    .w-top { display: flex; align-items: center; gap: 5px; }
+    .w-icon { font-size: 20px; line-height: 1; }
+    .w-temp { font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1; }
+    .w-desc { font-size: 10px; color: #475569; font-weight: 500; }
+    .w-meta { display: flex; gap: 5px; flex-wrap: wrap; }
+    .w-chip {
+      font-size: 9px; color: #334155;
+      background: #bdd4ef; border-radius: 4px;
+      padding: 1px 5px; font-weight: 500;
+    }
+
+    /* スケジュールパネル */
+    .sched-panel {
+      background: #f0f1f4;
+      border-radius: 8px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 0;
+    }
+    .sched-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .sched-date  { font-size: 10px; font-weight: 700; color: #374151; }
+    .updating    { font-size: 9px; color: #9ca3af; }
+
+    .event-list  { display: flex; flex-direction: column; gap: 3px; }
+    .event-wrap  { display: flex; flex-direction: column; }
+
+    .event-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 5px; border-radius: 5px;
+      background: #e4e7ed; min-height: 24px;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .event-item:hover { background: #d6dbe4; }
+    .event-item.open  { background: #d6dbe4; border-radius: 5px 5px 0 0; }
+
+    .event-dot   { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-学校    { background: #f59e0b; }
+    .dot-部活    { background: #3b82f6; }
+    .dot-個人    { background: #ec4899; }
+    .dot-出張    { background: #10b981; }
+    .dot-受験    { background: #8b5cf6; }
+    .dot-other   { background: #9ca3af; }
+
+    .event-time  { font-size: 9px; color: #6b7280; white-space: nowrap; }
+    .event-title {
+      flex: 1; font-size: 11px; font-weight: 600; color: #111827;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tag {
+      font-size: 9px; font-weight: 600; padding: 1px 5px;
+      border-radius: 3px; white-space: nowrap;
+    }
+    .tag-学校  { background: #fef3c7; color: #b45309; }
+    .tag-部活  { background: #dbeafe; color: #1d4ed8; }
+    .tag-個人  { background: #fce7f3; color: #be185d; }
+    .tag-出張  { background: #d1fae5; color: #065f46; }
+    .tag-受験  { background: #ede9fe; color: #5b21b6; }
+    .tag-other { background: #f3f4f6; color: #6b7280; }
+
+    .allday-badge { font-size: 9px; color: #9ca3af; }
+
+    .detail {
+      display: none; background: #e8edf5;
+      border-radius: 0 0 5px 5px; padding: 4px 8px 5px;
+      font-size: 10px; color: #4b5563; line-height: 1.5;
+    }
+    .detail.visible { display: block; }
+    .detail-row { display: flex; gap: 4px; margin-top: 2px; }
+    .detail-label { color: #9ca3af; min-width: 30px; flex-shrink: 0; }
+    .detail-value { color: #374151; white-space: pre-wrap; word-break: break-word; }
+
+    .no-events  { color: #9ca3af; font-size: 11px; padding: 4px 0; }
+    .error-text { color: #ef4444; font-size: 10px; }
+    .skeleton   { color: #d1d5db; font-size: 10px; }
+
+    /* ── 時間別予報 ── */
+    .hourly {
+      display: flex; gap: 2px;
+      margin-bottom: 5px;
+    }
+    .h-item {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      padding: 4px 0; min-width: 0;
+      background: #e8eaee; border-radius: 6px;
+    }
+    .h-item.now { background: #bfdbfe; }
+    .h-time { font-size: 9px; color: #6b7280; }
+    .h-icon { font-size: 13px; line-height: 1.2; }
+    .h-temp { font-size: 10px; font-weight: 700; color: #111827; }
+    .h-rain { font-size: 8px; color: #3b82f6; }
+
+    /* ── 週間予報 ── */
+    .weekly {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+    .d-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 4px 2px;
+      background: #e8eaee; border-radius: 6px;
+      min-width: 0;
+    }
+    .d-item.today { background: #bfdbfe; }
+    .d-day  { font-size: 10px; font-weight: 700; color: #1f2937; }
+    .d-day.sat { color: #2563eb; }
+    .d-day.sun { color: #dc2626; }
+    .d-icon { font-size: 13px; line-height: 1.2; }
+    .d-rain { font-size: 8px; color: #60a5fa; }
+    .d-temps { display: flex; gap: 3px; align-items: baseline; }
+    .d-hi   { font-size: 10px; font-weight: 700; color: #dc2626; }
+    .d-lo   { font-size: 9px; color: #2563eb; }
+  </style>
+</head>
+<body>
+
+  <!-- 上段：天気 × スケジュール -->
+  <div class="top-row">
+    <div id="weather-panel" class="weather-panel">
+      <div class="skeleton">天気取得中...</div>
+    </div>
+    <div class="sched-panel">
+      <div class="sched-header">
+        <div class="sched-date" id="date-label">読み込み中...</div>
+        <div class="updating" id="updating-label"></div>
+      </div>
+      <div id="event-list" class="event-list"></div>
+    </div>
+  </div>
+
+  <!-- 時間別予報 -->
+  <div id="hourly-container"></div>
+
+  <!-- 週間予報 -->
+  <div id="weekly-container"></div>
+
+  <script>
+    const CAL_API = 'https://script.google.com/macros/s/AKfycby2_p8sbK9TQfYupZpG11n2slbYsBTbIgJzg0GUvj5U4AvkQ3bOx_8iy4bt1G0dKLU1Tw/exec';
+    const WEEKDAYS = ['日','月','火','水','木','金','土'];
+
+    function wmoInfo(code, isDay = true) {
+      const icons = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌦️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌦️',82:'⛈️',95:'⛈️',96:'⛈️',99:'⛈️'};
+      const descs = {0:'快晴',1:'ほぼ晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'霧氷',51:'霧雨',53:'霧雨',55:'霧雨',61:'小雨',63:'雨',65:'大雨',71:'小雪',73:'雪',75:'大雪',80:'にわか雨',81:'にわか雨',82:'にわか雨',95:'雷雨',96:'雷雨',99:'雷雨'};
+      if (!isDay && (code===0||code===1)) return ['🌙', descs[code]];
+      return [icons[code]||'🌡️', descs[code]||'不明'];
+    }
+
+    async function loadWeather(lat, lon) {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+        + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`
+        + `&hourly=temperature_2m,weather_code,precipitation_probability`
+        + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+        + `&timezone=Asia%2FTokyo&forecast_days=7`;
+      const d = await (await fetch(url)).json();
+      renderWeatherPanel(d.current);
+      renderHourly(d.hourly);
+      renderWeekly(d.daily);
+    }
+
+    function renderWeatherPanel(cur) {
+      const [icon, desc] = wmoInfo(cur.weather_code, cur.is_day);
+      document.getElementById('weather-panel').innerHTML = `
+        <div class="w-top">
+          <span class="w-icon">${icon}</span>
+          <span class="w-temp">${Math.round(cur.temperature_2m)}°</span>
+        </div>
+        <div class="w-desc">${desc}</div>
+        <div class="w-meta">
+          <span class="w-chip">体感 ${Math.round(cur.apparent_temperature)}°</span>
+          <span class="w-chip">湿度 ${cur.relative_humidity_2m}%</span>
+          <span class="w-chip">風 ${cur.wind_speed_10m}m/s</span>
+        </div>`;
+    }
+
+    function renderHourly(hourly) {
+      const now = new Date();
+      const items = [];
+      for (let i = 0; i < hourly.time.length; i++) {
+        const t = new Date(hourly.time[i]);
+        const diffH = (t - now) / 3600000;
+        if (diffH < -0.5 || diffH > 23.5) continue;
+        const isNow = Math.abs(diffH) < 0.6;
+        const h = t.getHours();
+        const [icon] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
+        items.push(`
+          <div class="h-item${isNow ? ' now' : ''}">
+            <div class="h-time">${isNow ? '今' : h}</div>
+            <div class="h-icon">${icon}</div>
+            <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
+            <div class="h-rain">${hourly.precipitation_probability[i]}%</div>
+          </div>`);
+      }
+      document.getElementById('hourly-container').innerHTML =
+        `<div class="hourly">${items.join('')}</div>`;
+    }
+
+    function renderWeekly(daily) {
+      const cols = daily.time.map((dateStr, i) => {
+        const d  = new Date(dateStr + 'T00:00:00');
+        const wd = d.getDay();
+        const label = i===0 ? '今' : i===1 ? '明' : WEEKDAYS[wd];
+        const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
+        const [icon] = wmoInfo(daily.weather_code[i]);
+        return `
+          <div class="d-item${i===0?' today':''}">
+            <div class="d-day ${cls}">${label}</div>
+            <div class="d-icon">${icon}</div>
+            <div class="d-rain">${daily.precipitation_probability_max[i]}%</div>
+            <div class="d-temps">
+              <span class="d-hi">${Math.round(daily.temperature_2m_max[i])}°</span>
+              <span class="d-lo">${Math.round(daily.temperature_2m_min[i])}°</span>
+            </div>
+          </div>`;
+      });
+      document.getElementById('weekly-container').innerHTML =
+        `<div class="weekly" style="margin-top:5px">${cols.join('')}</div>`;
+    }
+
+    function initWeather() {
+      const fallback = () => loadWeather(35.6895, 139.6917);
+      if (!navigator.geolocation) { fallback(); return; }
+      navigator.geolocation.getCurrentPosition(
+        p => loadWeather(p.coords.latitude, p.coords.longitude).catch(fallback),
+        fallback
+      );
+    }
+
+    /* ── スケジュール ── */
+    function getTagClass(cal) {
+      if (!cal) return 'tag-other';
+      for (const k of ['学校','部活','個人','出張','受験'])
+        if (cal.includes(k)) return `tag-${k}`;
+      return 'tag-other';
+    }
+    function getDotClass(cal) {
+      if (!cal) return 'dot-other';
+      for (const k of ['学校','部活','個人','出張','受験'])
+        if (cal.includes(k)) return `dot-${k}`;
+      return 'dot-other';
+    }
+    function getTagLabel(cal) {
+      if (!cal) return 'その他';
+      for (const k of ['学校','部活','個人','出張','受験'])
+        if (cal.includes(k)) return k;
+      return 'その他';
+    }
+    const fmt = str => new Date(str).toLocaleTimeString('ja-JP',
+      {timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', hour12:false});
+    function getTodayStr(jst) {
+      return `${jst.getFullYear()}-${String(jst.getMonth()+1).padStart(2,'0')}-${String(jst.getDate()).padStart(2,'0')}`;
+    }
+    function isTodayEvent(ev, todayStr) {
+      if (ev.allDay) {
+        const s = ev.start.substring(0,10), end = ev.end ? ev.end.substring(0,10) : s;
+        return s <= todayStr && todayStr < end;
+      }
+      const jst = new Date(new Date(ev.start).toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
+      return getTodayStr(jst) === todayStr;
+    }
+    function sortEvents(evs) {
+      return evs.sort((a,b) => {
+        if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+        return a.allDay ? 0 : new Date(a.start) - new Date(b.start);
+      });
+    }
+    function renderEvents(events) {
+      const list = document.getElementById('event-list');
+      if (!events.length) {
+        list.innerHTML = '<div class="no-events">今日の予定はありません</div>'; return;
+      }
+      list.innerHTML = events.map((ev, i) => {
+        const timeHtml = ev.allDay
+          ? `<span class="allday-badge">終日</span>`
+          : `<span class="event-time">${fmt(ev.start)}〜${fmt(ev.end||ev.start)}</span>`;
+        const hasDetail = ev.description || ev.location;
+        const detailHtml = hasDetail ? `
+          <div class="detail" id="detail-${i}">
+            ${ev.location ? `<div class="detail-row"><span class="detail-label">📍</span><span class="detail-value">${ev.location}</span></div>` : ''}
+            ${ev.description ? `<div class="detail-row"><span class="detail-label">📝</span><span class="detail-value">${ev.description}</span></div>` : ''}
+          </div>` : '';
+        return `
+          <div class="event-wrap">
+            <div class="event-item" onclick="toggleDetail(${i},${!!hasDetail})" id="item-${i}">
+              <span class="event-dot ${getDotClass(ev.calendar)}"></span>
+              ${timeHtml}
+              <span class="event-title">${ev.title}</span>
+              <span class="tag ${getTagClass(ev.calendar)}">${getTagLabel(ev.calendar)}</span>
+            </div>
+            ${detailHtml}
+          </div>`;
+      }).join('');
+    }
+    function toggleDetail(i, has) {
+      if (!has) return;
+      const d  = document.getElementById(`detail-${i}`);
+      const it = document.getElementById(`item-${i}`);
+      d.classList.toggle('visible');
+      it.classList.toggle('open', d.classList.contains('visible'));
+    }
+    async function loadEvents() {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
+      const todayStr = getTodayStr(jstNow);
+      document.getElementById('date-label').textContent =
+        `${jstNow.getMonth()+1}月${jstNow.getDate()}日（${WEEKDAYS[jstNow.getDay()]}）`;
+      try {
+        const c = localStorage.getItem('today-schedule');
+        if (c) { const {date,events} = JSON.parse(c); if (date===todayStr) renderEvents(events); }
+      } catch(_) {}
+      document.getElementById('updating-label').textContent = '更新中...';
+      try {
+        const timeMin = `${todayStr}T00:00:00+09:00`, timeMax = `${todayStr}T23:59:59+09:00`;
+        const data = await (await fetch(`${CAL_API}?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`)).json();
+        const ev = sortEvents(data.filter(e => isTodayEvent(e, todayStr)));
+        localStorage.setItem('today-schedule', JSON.stringify({date:todayStr, events:ev}));
+        renderEvents(ev);
+      } catch(e) {
+        if (!document.getElementById('event-list').children.length)
+          document.getElementById('event-list').innerHTML = `<div class="error-text">取得エラー: ${e.message}</div>`;
+      } finally {
+        document.getElementById('updating-label').textContent = '';
+      }
+    }
+
+    initWeather();
+    loadEvents();
+  </script>
+</body>
+</html>
