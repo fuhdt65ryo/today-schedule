@@ -273,13 +273,18 @@
         `<div class="weekly" style="margin-top:5px">${cols.join('')}</div>`;
     }
 
+    let weatherCoords = null;   // 取得済みの緯度経度を覚えておき、更新時に再利用
     function initWeather() {
-      const fallback = () => loadWeather(35.6895, 139.6917);
+      const fallback = () => { weatherCoords = [35.6895, 139.6917]; return loadWeather(35.6895, 139.6917); };
       if (!navigator.geolocation) { fallback(); return; }
       navigator.geolocation.getCurrentPosition(
-        p => loadWeather(p.coords.latitude, p.coords.longitude).catch(fallback),
+        p => { weatherCoords = [p.coords.latitude, p.coords.longitude]; loadWeather(p.coords.latitude, p.coords.longitude).catch(fallback); },
         fallback
       );
+    }
+    function refreshWeather() {
+      if (weatherCoords) loadWeather(weatherCoords[0], weatherCoords[1]).catch(()=>{});
+      else initWeather();
     }
 
     /* ── スケジュール ── */
@@ -381,6 +386,15 @@
 
     initWeather();
     loadEvents();
+
+    /* ── 自動更新 ──
+       Notion埋め込みは1回読み込まれると再読込されないため、
+       定期的に & タブ復帰時に予定/天気を取り直して最新へ追従させる */
+    setInterval(loadEvents, 5 * 60 * 1000);    // 予定: 5分ごと
+    setInterval(refreshWeather, 30 * 60 * 1000); // 天気: 30分ごと
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') { loadEvents(); refreshWeather(); }
+    });
   </script>
 </body>
 </html>
