@@ -7,88 +7,117 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
       background: transparent;
-      padding: 10px 12px;
+      padding: 8px;
       color: #37352f;
-    }
-
-    /* ── 上段：天気 × スケジュール ── */
-    .top-row {
-      display: grid;
-      grid-template-columns: 130px 1fr;
-      gap: 8px;
-      margin-bottom: 6px;
-      align-items: stretch;
-    }
-
-    /* 天気パネル */
-    .weather-panel {
-      background: #dce8f7;
-      border-radius: 8px;
-      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 4px;
-    }
-    .w-top { display: flex; align-items: center; gap: 5px; }
-    .w-icon { font-size: 20px; line-height: 1; }
-    .w-temp { font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1; }
-    .w-desc { font-size: 10px; color: #475569; font-weight: 500; }
-    .w-meta { display: flex; gap: 5px; flex-wrap: wrap; }
-    .w-chip {
-      font-size: 9px; color: #334155;
-      background: #bdd4ef; border-radius: 4px;
-      padding: 1px 5px; font-weight: 500;
+      overflow: hidden;
     }
 
-    /* スケジュールパネル */
-    .sched-panel {
-      background: #f0f1f4;
-      border-radius: 8px;
-      padding: 7px 9px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .card {
+      background: #fdfdfc;
+      border: 1px solid #e9e7e4;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* 縦方向の余白配分：予定を最も広く、予報セルも伸ばす */
+    .hero { flex-shrink: 0; }
+    .section-label { flex-shrink: 0; }
+    .sched-card {
+      flex: 3 1 auto;
       min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
-    .sched-header {
-      display: flex; align-items: center;
+    #hourly-container, #weekly-container {
+      flex: 1 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .hourly, .weekly { flex: 1; }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #91918e;
+      letter-spacing: 0.06em;
+      margin: 10px 2px 4px;
+      display: flex;
+      align-items: center;
       justify-content: space-between;
     }
-    .sched-date  { font-size: 10px; font-weight: 700; color: #374151; }
-    .updating    { font-size: 9px; color: #9ca3af; }
+    .section-label:first-child { margin-top: 0; }
+    .updating { font-size: 9px; font-weight: 500; color: #b3b3b0; }
 
-    .event-list  { display: flex; flex-direction: column; gap: 3px; }
-    .event-wrap  { display: flex; flex-direction: column; }
+    /* ── 現在天気（ヒーローカード） ── */
+    .hero {
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,0.05);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .hero-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .hero-icon { font-size: 34px; line-height: 1; }
+    .hero-temp { font-size: 28px; font-weight: 700; color: #1e293b; line-height: 1.1; }
+    .hero-desc { font-size: 11px; color: #64748b; font-weight: 600; }
+    .hero-meta {
+      display: flex; flex-direction: column; gap: 4px;
+      align-items: flex-end; flex-shrink: 0;
+    }
+    .hero-chip {
+      font-size: 9px; color: #475569; font-weight: 600;
+      background: rgba(255,255,255,0.65);
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    /* 天気別グラデーション（ヒーロー用） */
+    .hero.wx-sunny  { background: linear-gradient(135deg, #fff7e6, #ffe9c4); }
+    .hero.wx-cloudy { background: linear-gradient(135deg, #f1f3f5, #e2e6ea); }
+    .hero.wx-rainy  { background: linear-gradient(135deg, #e3edfb, #cfe0f6); }
+    .hero.wx-storm  { background: linear-gradient(135deg, #e4e6f7, #cdd2ef); }
+    .hero.wx-snow   { background: linear-gradient(135deg, #e8f6fd, #d3edfa); }
+
+    /* ── 今日の予定 ── */
+    .sched-card { padding: 4px 6px; }
+    .event-list { display: flex; flex-direction: column; }
+    .event-wrap { border-bottom: 1px solid #f0efec; }
+    .event-wrap:last-child { border-bottom: none; }
 
     .event-item {
       display: flex; align-items: center; gap: 6px;
-      padding: 3px 5px; border-radius: 5px;
-      background: #e4e7ed; min-height: 24px;
+      padding: 6px 6px; border-radius: 8px;
+      min-height: 26px;
       cursor: pointer; transition: background 0.1s;
     }
-    .event-item:hover { background: #d6dbe4; }
-    .event-item.open  { background: #d6dbe4; border-radius: 5px 5px 0 0; }
+    .event-item:hover, .event-item.open { background: #f1f0ee; }
 
-    .event-dot   { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .dot-学校    { background: #f59e0b; }
-    .dot-部活    { background: #3b82f6; }
-    .dot-個人    { background: #ec4899; }
-    .dot-出張    { background: #10b981; }
-    .dot-受験    { background: #8b5cf6; }
-    .dot-other   { background: #9ca3af; }
+    .event-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot-学校  { background: #f59e0b; }
+    .dot-部活  { background: #3b82f6; }
+    .dot-個人  { background: #ec4899; }
+    .dot-出張  { background: #10b981; }
+    .dot-受験  { background: #8b5cf6; }
+    .dot-other { background: #9ca3af; }
 
-    .event-time  { font-size: 9px; color: #6b7280; white-space: nowrap; }
+    .event-time { font-size: 9px; color: #91918e; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .event-title {
-      flex: 1; font-size: 11px; font-weight: 600; color: #111827;
+      flex: 1; font-size: 11.5px; font-weight: 600; color: #37352f;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .tag {
-      font-size: 9px; font-weight: 600; padding: 1px 5px;
-      border-radius: 3px; white-space: nowrap;
+      font-size: 9px; font-weight: 600; padding: 1px 6px;
+      border-radius: 999px; white-space: nowrap; flex-shrink: 0;
     }
     .tag-学校  { background: #fef3c7; color: #b45309; }
     .tag-部活  { background: #dbeafe; color: #1d4ed8; }
@@ -97,92 +126,132 @@
     .tag-受験  { background: #ede9fe; color: #5b21b6; }
     .tag-other { background: #f3f4f6; color: #6b7280; }
 
-    .allday-badge { font-size: 9px; color: #9ca3af; }
+    .allday-badge { font-size: 9px; color: #91918e; }
 
     .detail {
-      display: none; background: #e8edf5;
-      border-radius: 0 0 5px 5px; padding: 4px 8px 5px;
-      font-size: 10px; color: #4b5563; line-height: 1.5;
+      display: none;
+      padding: 2px 8px 8px 19px;
+      font-size: 10px; color: #64615c; line-height: 1.5;
     }
     .detail.visible { display: block; }
     .detail-row { display: flex; gap: 4px; margin-top: 2px; }
-    .detail-label { color: #9ca3af; min-width: 30px; flex-shrink: 0; }
-    .detail-value { color: #374151; white-space: pre-wrap; word-break: break-word; }
+    .detail-label { flex-shrink: 0; }
+    .detail-value { color: #37352f; white-space: pre-wrap; word-break: break-word; }
 
-    .no-events  { color: #9ca3af; font-size: 11px; padding: 4px 0; }
-    .error-text { color: #ef4444; font-size: 10px; }
-    .skeleton   { color: #d1d5db; font-size: 10px; }
+    .no-events  { color: #b3b3b0; font-size: 11px; padding: 8px 6px; }
+    .error-text { color: #ef4444; font-size: 10px; padding: 6px; }
+    .skeleton   { color: #c9c8c5; font-size: 11px; }
 
-    /* ── 時間別予報 ── */
+    /* ── 時間別予報（横スクロール・下段に降水量） ── */
+    .h-scroll {
+      flex: 1;
+      display: flex; flex-direction: column;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .h-scroll::-webkit-scrollbar { display: none; }
     .hourly {
-      display: flex; gap: 2px;
-      margin-bottom: 5px;
+      display: flex; gap: 4px;
+      padding: 6px;
     }
     .h-item {
-      flex: 1;
-      display: flex; flex-direction: column; align-items: center; gap: 1px;
-      padding: 4px 0; min-width: 0;
-      border-radius: 6px;
+      flex: 1 0 38px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: space-evenly; gap: 2px;
+      padding: 6px 0;
+      border-radius: 9px;
     }
-    .h-item.now { outline: 2px solid #60a5fa; }
-    .h-time { font-size: 9px; color: #6b7280; }
-    .h-icon { font-size: 13px; line-height: 1.2; }
-    .h-temp { font-size: 10px; font-weight: 700; color: #111827; }
-    .h-rain { font-size: 8px; }
+    .h-item.now { box-shadow: inset 0 0 0 1.5px #3b82f6; }
+    .h-time { font-size: 9px; font-weight: 600; color: #78766f; }
+    .h-item.now .h-time { color: #1d4ed8; }
+    .h-icon { font-size: 15px; line-height: 1.2; }
+    .h-temp { font-size: 10.5px; font-weight: 700; color: #37352f; font-variant-numeric: tabular-nums; }
+    .h-rain { font-size: 8px; font-weight: 600; }
+
+    /* ── 降水量チャート（時間別予報の列に揃えた棒グラフ） ── */
+    .rain-chart {
+      flex-shrink: 0;
+      display: flex; gap: 4px;
+      height: 42px;
+      padding: 4px 6px 6px;
+      border-top: 1px solid #f0efec;
+    }
+    .rc-col {
+      flex: 1 0 38px; min-width: 0;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .rc-bar {
+      width: 60%; max-width: 16px;
+      border-radius: 3px 3px 0 0;
+      background: #60a5fa;
+      min-height: 2px;
+    }
+    .rc-bar.hi { background: #2563eb; }
+    .rc-max { font-weight: 500; color: #91918e; }
 
     /* ── 週間予報 ── */
     .weekly {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 3px;
+      padding: 6px;
     }
     .d-item {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      padding: 4px 2px;
-      border-radius: 6px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: space-evenly; gap: 2px;
+      padding: 6px 1px;
+      border-radius: 9px;
       min-width: 0;
     }
-    .d-item.today { outline: 2px solid #60a5fa; }
-    .d-day  { font-size: 10px; font-weight: 700; color: #1f2937; }
+    .d-item.today { box-shadow: inset 0 0 0 1.5px #3b82f6; }
+    .d-day  { font-size: 10px; font-weight: 700; color: #4b4a47; }
     .d-day.sat { color: #2563eb; }
     .d-day.sun { color: #dc2626; }
-    .d-icon { font-size: 13px; line-height: 1.2; }
-    .d-rain { font-size: 8px; }
-    .d-temps { display: flex; gap: 3px; align-items: baseline; }
-    .d-hi   { font-size: 10px; font-weight: 700; color: #dc2626; }
-    .d-lo   { font-size: 9px; color: #2563eb; }
+    .d-icon { font-size: 15px; line-height: 1.2; }
+    .d-rain { font-size: 8px; font-weight: 600; }
+    .d-temps {
+      display: flex; flex-direction: column; align-items: center;
+      line-height: 1.25; font-variant-numeric: tabular-nums;
+    }
+    .d-hi { font-size: 10px; font-weight: 700; color: #dc2626; }
+    .d-lo { font-size: 9px; color: #2563eb; }
 
-    /* 天気別カラー */
-    .wx-sunny  { background: #fff3e0; }
-    .wx-cloudy { background: #e8eaee; }
-    .wx-rainy  { background: #dbeafe; }
-    .wx-storm  { background: #e0e7ff; }
-    .wx-snow   { background: #e0f2fe; }
+    /* 天気別カラー（予報セル用） */
+    .wx-sunny  { background: #fdf3e3; }
+    .wx-cloudy { background: #ededeb; }
+    .wx-rainy  { background: #e3edfb; }
+    .wx-storm  { background: #e4e6f7; }
+    .wx-snow   { background: #e8f6fd; }
     .rain-blue { color: #3b82f6; }
-    .rain-gray { color: #9ca3af; }
+    .rain-gray { color: #b3b3b0; }
   </style>
 </head>
 <body>
 
-  <!-- 上段：天気 × スケジュール -->
-  <div class="top-row">
-    <div id="weather-panel" class="weather-panel">
-      <div class="skeleton">天気取得中...</div>
-    </div>
-    <div class="sched-panel">
-      <div class="sched-header">
-        <div class="sched-date" id="date-label">読み込み中...</div>
-        <div class="updating" id="updating-label"></div>
-      </div>
-      <div id="event-list" class="event-list"></div>
-    </div>
+  <!-- 現在天気 -->
+  <div id="weather-panel" class="hero wx-cloudy">
+    <div class="skeleton">天気取得中...</div>
   </div>
 
-  <!-- 時間別予報 -->
-  <div id="hourly-container"></div>
+  <!-- 今日の予定 -->
+  <div class="section-label">
+    <span id="date-label">読み込み中...</span>
+    <span class="updating" id="updating-label"></span>
+  </div>
+  <div class="card sched-card">
+    <div id="event-list" class="event-list"></div>
+  </div>
+
+  <!-- 時間別予報（下段に降水量グラフ） -->
+  <div class="section-label">
+    <span>この先24時間</span>
+    <span class="rc-max" id="rain-max-label"></span>
+  </div>
+  <div class="card" id="hourly-container"></div>
 
   <!-- 週間予報 -->
-  <div id="weekly-container"></div>
+  <div class="section-label">週間予報</div>
+  <div class="card" id="weekly-container"></div>
 
   <script>
     const CAL_API = 'https://script.google.com/macros/s/AKfycby2_p8sbK9TQfYupZpG11n2slbYsBTbIgJzg0GUvj5U4AvkQ3bOx_8iy4bt1G0dKLU1Tw/exec';
@@ -200,8 +269,8 @@
     async function loadWeather(lat, lon) {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
         + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`
-        + `&hourly=temperature_2m,weather_code,precipitation_probability`
-        + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+        + `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation`
+        + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum`
         + `&timezone=Asia%2FTokyo&forecast_days=7`;
       const d = await (await fetch(url)).json();
       renderWeatherPanel(d.current);
@@ -210,42 +279,61 @@
     }
 
     function renderWeatherPanel(cur) {
-      const [icon, desc] = wmoInfo(cur.weather_code, cur.is_day);
-      document.getElementById('weather-panel').innerHTML = `
-        <div class="w-top">
-          <span class="w-icon">${icon}</span>
-          <span class="w-temp">${Math.round(cur.temperature_2m)}°</span>
+      const [icon, desc, wxCls] = wmoInfo(cur.weather_code, cur.is_day);
+      const panel = document.getElementById('weather-panel');
+      panel.className = `hero ${wxCls}`;
+      panel.innerHTML = `
+        <div class="hero-main">
+          <span class="hero-icon">${icon}</span>
+          <div>
+            <div class="hero-temp">${Math.round(cur.temperature_2m)}°</div>
+            <div class="hero-desc">${desc}</div>
+          </div>
         </div>
-        <div class="w-desc">${desc}</div>
-        <div class="w-meta">
-          <span class="w-chip">体感 ${Math.round(cur.apparent_temperature)}°</span>
-          <span class="w-chip">湿度 ${cur.relative_humidity_2m}%</span>
+        <div class="hero-meta">
+          <span class="hero-chip">体感 ${Math.round(cur.apparent_temperature)}°</span>
+          <span class="hero-chip">湿度 ${cur.relative_humidity_2m}%</span>
         </div>`;
     }
 
     function renderHourly(hourly) {
       const now = new Date();
-      const items = [];
+      const cells = [], bars = [];
+      let maxMm = 0;
       for (let i = 0; i < hourly.time.length; i++) {
         const t = new Date(hourly.time[i]);
         const diffH = (t - now) / 3600000;
         if (diffH < -0.5 || diffH > 23.5) continue;
-        const isNow = Math.abs(diffH) < 0.6;
+        const isNow = diffH >= -0.5 && diffH < 0.5;
         if (!isNow && t.getHours() % 2 !== 0) continue;
         const h = t.getHours();
         const [icon,,wxCls] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
         const rain = hourly.precipitation_probability[i];
-        const rainCls = rain >= 50 ? 'rain-blue' : 'rain-gray';
-        items.push(`
+        const label = isNow ? '今' : h + '時';
+        cells.push(`
           <div class="h-item ${wxCls}${isNow ? ' now' : ''}">
-            <div class="h-time">${isNow ? '今' : h}</div>
+            <div class="h-time">${label}</div>
             <div class="h-icon">${icon}</div>
             <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
-            <div class="h-rain ${rainCls}">${rain}%</div>
+            <div class="h-rain ${rain >= 50 ? 'rain-blue' : 'rain-gray'}">${rain}%</div>
+          </div>`);
+        // セルは2時間刻みなので、間の時刻の雨も拾えるよう次の1時間との最大値をとる。
+        // 10mm/h を満量とし、小雨も見えるよう平方根スケール
+        const mm = Math.max(hourly.precipitation[i] || 0, hourly.precipitation[i+1] || 0);
+        maxMm = Math.max(maxMm, mm);
+        const pct = Math.sqrt(Math.min(mm / 10, 1)) * 100;
+        bars.push(`
+          <div class="rc-col" title="${label}ごろ ${mm}mm/h">
+            ${mm > 0 ? `<div class="rc-bar${pct >= 50 ? ' hi' : ''}" style="height:${pct}%"></div>` : ''}
           </div>`);
       }
+      document.getElementById('rain-max-label').textContent =
+        maxMm > 0 ? `降水量 最大 ${maxMm}mm/h` : '';
       document.getElementById('hourly-container').innerHTML =
-        `<div class="hourly">${items.join('')}</div>`;
+        `<div class="h-scroll">
+          <div class="hourly">${cells.join('')}</div>
+          ${maxMm > 0 ? `<div class="rain-chart">${bars.join('')}</div>` : ''}
+        </div>`;
     }
 
     function renderWeekly(daily) {
@@ -256,13 +344,12 @@
         const cls   = wd===6 ? 'sat' : wd===0 ? 'sun' : '';
         const [icon,,wxBase] = wmoInfo(daily.weather_code[i]);
         const rain = daily.precipitation_probability_max[i];
-        const rainCls = rain >= 50 ? 'rain-blue' : 'rain-gray';
         const wxCls = rain >= 50 ? 'wx-rainy' : wxBase === 'wx-rainy' || wxBase === 'wx-storm' ? 'wx-cloudy' : wxBase;
         return `
           <div class="d-item ${wxCls}${i===0?' today':''}">
             <div class="d-day ${cls}">${label}</div>
             <div class="d-icon">${icon}</div>
-            <div class="d-rain ${rainCls}">${rain}%</div>
+            <div class="d-rain ${rain >= 50 ? 'rain-blue' : 'rain-gray'}">${rain}%</div>
             <div class="d-temps">
               <span class="d-hi">${Math.round(daily.temperature_2m_max[i])}°</span>
               <span class="d-lo">${Math.round(daily.temperature_2m_min[i])}°</span>
@@ -270,7 +357,7 @@
           </div>`;
       });
       document.getElementById('weekly-container').innerHTML =
-        `<div class="weekly" style="margin-top:5px">${cols.join('')}</div>`;
+        `<div class="weekly">${cols.join('')}</div>`;
     }
 
     let weatherCoords = null;   // 取得済みの緯度経度を覚えておき、更新時に再利用
@@ -364,7 +451,7 @@
       const jstNow = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
       const todayStr = getTodayStr(jstNow);
       document.getElementById('date-label').textContent =
-        `${jstNow.getMonth()+1}月${jstNow.getDate()}日（${WEEKDAYS[jstNow.getDay()]}）`;
+        `${jstNow.getMonth()+1}月${jstNow.getDate()}日（${WEEKDAYS[jstNow.getDay()]}）の予定`;
       try {
         const c = localStorage.getItem('today-schedule');
         if (c) { const {date,events} = JSON.parse(c); if (date===todayStr) renderEvents(events); }
