@@ -169,7 +169,6 @@
     .h-item.now .h-time { color: #1d4ed8; }
     .h-icon { font-size: 15px; line-height: 1.2; }
     .h-temp { font-size: 10.5px; font-weight: 700; color: #37352f; font-variant-numeric: tabular-nums; }
-    .h-rain { font-size: 8px; font-weight: 600; }
 
     /* ── 降水量チャート（時間別予報の列に揃えた棒グラフ） ── */
     .rain-chart {
@@ -267,7 +266,6 @@
       .h-time { font-size: 8px; }
       .h-icon { font-size: 12px; }
       .h-temp { font-size: 9.5px; }
-      .h-rain { font-size: 7px; }
       .rain-chart { display: none; }
       .weekly { padding: 2px 5px; gap: 3px; }
       .d-item { padding: 2px 1px; gap: 0; }
@@ -323,7 +321,7 @@
     async function loadWeather(lat, lon) {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
         + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`
-        + `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation`
+        + `&hourly=temperature_2m,weather_code,precipitation`
         + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum`
         + `&timezone=Asia%2FTokyo&forecast_days=7`;
       const d = await (await fetch(url)).json();
@@ -362,14 +360,12 @@
         if (!isNow && t.getHours() % 2 !== 0) continue;
         const h = t.getHours();
         const [icon,,wxCls] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
-        const rain = hourly.precipitation_probability[i];
         const label = isNow ? '今' : h + '時';
         cells.push(`
           <div class="h-item ${wxCls}${isNow ? ' now' : ''}">
             <div class="h-time">${label}</div>
             <div class="h-icon">${icon}</div>
             <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
-            <div class="h-rain ${rain >= 50 ? 'rain-blue' : 'rain-gray'}">${rain}%</div>
           </div>`);
         // セルは2時間刻みなので、間の時刻の雨も拾えるよう次の1時間との最大値をとる。
         // 10mm/h を満量とし、小雨も見えるよう平方根スケール
