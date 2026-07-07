@@ -15,7 +15,9 @@
       color: #37352f;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      /* 高さが足りない場合は切り捨てずスクロールさせる */
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .card {
@@ -30,7 +32,8 @@
     .section-label { flex-shrink: 0; }
     .sched-card {
       flex: 3 1 auto;
-      min-height: 0;
+      /* 高さ不足でも予定が消えないよう最低3行分は確保し、中でスクロール */
+      min-height: 88px;
       overflow-y: auto;
       scrollbar-width: thin;
     }
@@ -224,6 +227,25 @@
     .wx-snow   { background: #e8f6fd; }
     .rain-blue { color: #3b82f6; }
     .rain-gray { color: #b3b3b0; }
+
+    /* ── 埋め込み高さが低いときのコンパクト表示 ── */
+    @media (max-height: 480px) {
+      body { padding: 6px 8px; }
+      .hero { padding: 7px 12px; }
+      .hero-icon { font-size: 24px; }
+      .hero-temp { font-size: 20px; }
+      .hero-desc { font-size: 10px; }
+      .hero-meta { flex-direction: row; gap: 4px; }
+      .section-label { margin: 6px 2px 3px; }
+      .sched-card { min-height: 60px; }
+      .event-item { padding: 4px 6px; min-height: 22px; }
+      .hourly { padding: 4px 6px; }
+      .h-item { padding: 4px 0; gap: 1px; }
+      .h-icon, .d-icon { font-size: 13px; }
+      .rain-chart { height: 26px; padding: 3px 6px 4px; }
+      .weekly { padding: 4px 6px; }
+      .d-item { padding: 4px 1px; gap: 1px; }
+    }
   </style>
 </head>
 <body>
