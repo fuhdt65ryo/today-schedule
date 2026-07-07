@@ -246,6 +246,38 @@
       .weekly { padding: 4px 6px; }
       .d-item { padding: 4px 1px; gap: 1px; }
     }
+
+    /* ── さらに低い埋め込み（Notion列の標準埋め込みなど）用の超コンパクト表示 ── */
+    @media (max-height: 370px) {
+      body { padding: 4px 8px; }
+      .hero { padding: 4px 10px; border-radius: 9px; }
+      .hero-main { gap: 6px; }
+      .hero-icon { font-size: 17px; }
+      .hero-temp { font-size: 15px; }
+      .hero-desc { font-size: 8.5px; }
+      .hero-chip { font-size: 8px; padding: 0 6px; }
+      .section-label { font-size: 9px; margin: 4px 2px 2px; }
+      .updating, .rc-max { font-size: 8px; }
+      .sched-card { min-height: 40px; }
+      .event-item { padding: 2px 5px; min-height: 18px; }
+      .event-title { font-size: 10.5px; }
+      .event-time, .allday-badge, .tag { font-size: 8px; }
+      .hourly { padding: 2px 5px; gap: 3px; }
+      .h-item { padding: 2px 0; gap: 0; }
+      .h-time { font-size: 8px; }
+      .h-icon { font-size: 12px; }
+      .h-temp { font-size: 9.5px; }
+      .h-rain { font-size: 7px; }
+      .rain-chart { display: none; }
+      .weekly { padding: 2px 5px; gap: 3px; }
+      .d-item { padding: 2px 1px; gap: 0; }
+      .d-day { font-size: 9px; }
+      .d-icon { font-size: 12px; }
+      .d-rain { font-size: 7px; }
+      .d-temps { flex-direction: row; gap: 3px; align-items: baseline; }
+      .d-hi { font-size: 9.5px; }
+      .d-lo { font-size: 8.5px; }
+    }
   </style>
 </head>
 <body>
