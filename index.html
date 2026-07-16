@@ -104,6 +104,7 @@
       cursor: pointer; transition: background 0.1s;
     }
     .event-item:hover, .event-item.open { background: #f1f0ee; }
+    .event-item.done { opacity: 0.45; }
 
     .event-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .dot-学校  { background: #f59e0b; }
@@ -227,6 +228,52 @@
     .rain-blue { color: #3b82f6; }
     .rain-gray { color: #b3b3b0; }
 
+    /* ── ダークモード（OS/Notionのダークテーマに追従） ── */
+    @media (prefers-color-scheme: dark) {
+      body { color: #dedddb; }
+      .card { background: #1f1f1f; border-color: #343434; }
+      .section-label { color: #86847f; }
+      .updating { color: #6f6e6b; }
+      .hero { border-color: rgba(255,255,255,0.06); }
+      .hero.wx-sunny  { background: linear-gradient(135deg, #38301c, #2c2616); }
+      .hero.wx-cloudy { background: linear-gradient(135deg, #2a2c2f, #232527); }
+      .hero.wx-rainy  { background: linear-gradient(135deg, #1d2a3d, #182333); }
+      .hero.wx-storm  { background: linear-gradient(135deg, #262a45, #1f2238); }
+      .hero.wx-snow   { background: linear-gradient(135deg, #1c2e3d, #172735); }
+      .hero-temp { color: #f1f5f9; }
+      .hero-desc { color: #94a3b8; }
+      .hero-chip { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.08); color: #cbd5e1; }
+      .event-wrap { border-color: #2d2d2d; }
+      .event-item:hover, .event-item.open { background: #2a2a2a; }
+      .event-time, .allday-badge { color: #86847f; }
+      .event-title { color: #dedddb; }
+      .detail { color: #a5a29c; }
+      .detail-value { color: #dedddb; }
+      .no-events { color: #6f6e6b; }
+      .skeleton { color: #55534f; }
+      .tag-学校 { background: rgba(245,158,11,.16); color: #fbbf24; }
+      .tag-部活 { background: rgba(59,130,246,.16); color: #93c5fd; }
+      .tag-個人 { background: rgba(236,72,153,.16); color: #f9a8d4; }
+      .tag-出張 { background: rgba(16,185,129,.16); color: #6ee7b7; }
+      .tag-受験 { background: rgba(139,92,246,.16); color: #c4b5fd; }
+      .tag-other { background: rgba(156,163,175,.14); color: #a8adb5; }
+      .h-time { color: #9a978f; }
+      .h-item.now .h-time { color: #93c5fd; }
+      .h-temp, .d-day { color: #dedddb; }
+      .d-day.sat { color: #60a5fa; }
+      .d-day.sun { color: #f87171; }
+      .d-hi { color: #f87171; }
+      .d-lo { color: #60a5fa; }
+      .rain-chart { border-color: #2d2d2d; }
+      .rc-max { color: #86847f; }
+      .wx-sunny  { background: #33301f; }
+      .wx-cloudy { background: #2a2a28; }
+      .wx-rainy  { background: #20304a; }
+      .wx-storm  { background: #292d4a; }
+      .wx-snow   { background: #1d2f3f; }
+      .rain-gray { color: #6f6e6b; }
+    }
+
     /* ── 埋め込み高さが低いときのコンパクト表示 ── */
     @media (max-height: 480px) {
       body { padding: 6px 8px; }
@@ -320,7 +367,7 @@
 
     async function loadWeather(lat, lon) {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-        + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`
+        + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day`
         + `&hourly=temperature_2m,weather_code,precipitation`
         + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum`
         + `&timezone=Asia%2FTokyo&forecast_days=7`;
@@ -352,12 +399,13 @@
       const now = new Date();
       const cells = [], bars = [];
       let maxMm = 0;
-      for (let i = 0; i < hourly.time.length; i++) {
+      // 「今」の時刻を起点に2時間刻みで拾う（間隔が不均一にならないように）
+      let start = hourly.time.findIndex(tm => (new Date(tm) - now) / 3600000 >= -0.5);
+      if (start < 0) start = 0;
+      for (let i = start; i < hourly.time.length; i += 2) {
         const t = new Date(hourly.time[i]);
-        const diffH = (t - now) / 3600000;
-        if (diffH < -0.5 || diffH > 23.5) continue;
-        const isNow = diffH >= -0.5 && diffH < 0.5;
-        if (!isNow && t.getHours() % 2 !== 0) continue;
+        if ((t - now) / 3600000 > 23.5) break;
+        const isNow = i === start;
         const h = t.getHours();
         const [icon,,wxCls] = wmoInfo(hourly.weather_code[i], h >= 6 && h < 18);
         const label = isNow ? '今' : h + '時';
@@ -411,20 +459,44 @@
     }
 
     let weatherCoords = null;   // 取得済みの緯度経度を覚えておき、更新時に再利用
+    let weatherRetryTimer = null;
+
+    /* 取得失敗時：まだ何も表示できていなければエラーを出し、1分後に再試行 */
+    function showWeatherError() {
+      const panel = document.getElementById('weather-panel');
+      if (!panel.querySelector('.hero-main'))
+        panel.innerHTML = '<div class="error-text">天気を取得できませんでした（自動で再試行します）</div>';
+      clearTimeout(weatherRetryTimer);
+      weatherRetryTimer = setTimeout(refreshWeather, 60 * 1000);
+    }
+
     function initWeather() {
-      const fallback = () => { weatherCoords = [35.6895, 139.6917]; return loadWeather(35.6895, 139.6917); };
-      if (!navigator.geolocation) { fallback(); return; }
+      // 優先順: URLパラメータ(?lat=..&lon=..) > 位置情報 > 東京
+      // Notionのiframeでは位置情報がブロックされることが多いため、
+      // 埋め込みURLに lat/lon を付ければ確実に固定地点を使える
+      const params = new URLSearchParams(location.search);
+      const pLat = parseFloat(params.get('lat')), pLon = parseFloat(params.get('lon'));
+      if (isFinite(pLat) && isFinite(pLon)) {
+        weatherCoords = [pLat, pLon];
+        loadWeather(pLat, pLon).catch(showWeatherError);
+        return;
+      }
+      const tokyo = () => { weatherCoords = [35.6895, 139.6917]; loadWeather(35.6895, 139.6917).catch(showWeatherError); };
+      if (!navigator.geolocation) { tokyo(); return; }
       navigator.geolocation.getCurrentPosition(
-        p => { weatherCoords = [p.coords.latitude, p.coords.longitude]; loadWeather(p.coords.latitude, p.coords.longitude).catch(fallback); },
-        fallback
+        p => { weatherCoords = [p.coords.latitude, p.coords.longitude]; loadWeather(p.coords.latitude, p.coords.longitude).catch(tokyo); },
+        tokyo
       );
     }
     function refreshWeather() {
-      if (weatherCoords) loadWeather(weatherCoords[0], weatherCoords[1]).catch(()=>{});
+      if (weatherCoords) loadWeather(weatherCoords[0], weatherCoords[1]).catch(showWeatherError);
       else initWeather();
     }
 
     /* ── スケジュール ── */
+    /* 予定タイトル等はカレンダー由来の任意文字列なので、HTMLとして解釈されないようエスケープ */
+    const esc = s => String(s).replace(/[&<>"']/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function getTagClass(cal) {
       if (!cal) return 'tag-other';
       for (const k of ['学校','部活','個人','出張','受験'])
@@ -453,8 +525,12 @@
         const s = ev.start.substring(0,10), end = ev.end ? ev.end.substring(0,10) : s;
         return s <= todayStr && todayStr < end;
       }
-      const jst = new Date(new Date(ev.start).toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));
-      return getTodayStr(jst) === todayStr;
+      // 深夜をまたぐ予定も拾えるよう、今日(JST)と期間が重なるかで判定
+      const dayStart = new Date(`${todayStr}T00:00:00+09:00`).getTime();
+      const dayEnd = dayStart + 86400000;
+      const s = new Date(ev.start).getTime();
+      const e = Math.max(ev.end ? new Date(ev.end).getTime() : s, s + 1);
+      return s < dayEnd && e > dayStart;
     }
     function sortEvents(evs) {
       return evs.sort((a,b) => {
@@ -467,22 +543,25 @@
       if (!events.length) {
         list.innerHTML = '<div class="no-events">今日の予定はありません</div>'; return;
       }
+      const now = Date.now();
       list.innerHTML = events.map((ev, i) => {
         const timeHtml = ev.allDay
           ? `<span class="allday-badge">終日</span>`
           : `<span class="event-time">${fmt(ev.start)}〜${fmt(ev.end||ev.start)}</span>`;
+        // 終了した予定はグレーアウト（終日は対象外）
+        const isDone = !ev.allDay && new Date(ev.end || ev.start).getTime() < now;
         const hasDetail = ev.description || ev.location;
         const detailHtml = hasDetail ? `
           <div class="detail" id="detail-${i}">
-            ${ev.location ? `<div class="detail-row"><span class="detail-label">📍</span><span class="detail-value">${ev.location}</span></div>` : ''}
-            ${ev.description ? `<div class="detail-row"><span class="detail-label">📝</span><span class="detail-value">${ev.description}</span></div>` : ''}
+            ${ev.location ? `<div class="detail-row"><span class="detail-label">📍</span><span class="detail-value">${esc(ev.location)}</span></div>` : ''}
+            ${ev.description ? `<div class="detail-row"><span class="detail-label">📝</span><span class="detail-value">${esc(ev.description)}</span></div>` : ''}
           </div>` : '';
         return `
           <div class="event-wrap">
-            <div class="event-item" onclick="toggleDetail(${i},${!!hasDetail})" id="item-${i}">
+            <div class="event-item${isDone ? ' done' : ''}" onclick="toggleDetail(${i},${!!hasDetail})" id="item-${i}">
               <span class="event-dot ${getDotClass(ev.calendar)}"></span>
               ${timeHtml}
-              <span class="event-title">${ev.title}</span>
+              <span class="event-title">${esc(ev.title)}</span>
               <span class="tag ${getTagClass(ev.calendar)}">${getTagLabel(ev.calendar)}</span>
             </div>
             ${detailHtml}
