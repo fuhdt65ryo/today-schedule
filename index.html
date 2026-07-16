@@ -471,22 +471,13 @@
     }
 
     function initWeather() {
-      // 優先順: URLパラメータ(?lat=..&lon=..) > 位置情報 > 東京
-      // Notionのiframeでは位置情報がブロックされることが多いため、
-      // 埋め込みURLに lat/lon を付ければ確実に固定地点を使える
+      // 既定はつくばみらい市。URLパラメータ(?lat=..&lon=..)で別地点に上書き可能
       const params = new URLSearchParams(location.search);
       const pLat = parseFloat(params.get('lat')), pLon = parseFloat(params.get('lon'));
-      if (isFinite(pLat) && isFinite(pLon)) {
-        weatherCoords = [pLat, pLon];
-        loadWeather(pLat, pLon).catch(showWeatherError);
-        return;
-      }
-      const tokyo = () => { weatherCoords = [35.6895, 139.6917]; loadWeather(35.6895, 139.6917).catch(showWeatherError); };
-      if (!navigator.geolocation) { tokyo(); return; }
-      navigator.geolocation.getCurrentPosition(
-        p => { weatherCoords = [p.coords.latitude, p.coords.longitude]; loadWeather(p.coords.latitude, p.coords.longitude).catch(tokyo); },
-        tokyo
-      );
+      weatherCoords = (isFinite(pLat) && isFinite(pLon))
+        ? [pLat, pLon]
+        : [35.963, 140.037];   // つくばみらい市
+      loadWeather(weatherCoords[0], weatherCoords[1]).catch(showWeatherError);
     }
     function refreshWeather() {
       if (weatherCoords) loadWeather(weatherCoords[0], weatherCoords[1]).catch(showWeatherError);
